@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recipe App</title>
+    <!-- Tailwind CSS CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-gray-900 text-white p-4 text-center">
+      <h1 class="text-2xl">Recipe</h1>
+      <button id="logout-button" class="bg-red-500 text-white p-2 rounded">
+        Logout
+      </button>
+    </header>
+
+    <!-- Main content -->
+    <main class="container mx-auto mt-8">
+      <!-- Create Post Form -->
+      <section id="create-post-section" class="mb-8">
+        <h2 class="text-xl font-bold mb-4">Create New Recipe</h2>
+        <form id="post-form" class="space-y-4">
+          <div>
+            <input
+              type="text"
+              id="title"
+              placeholder="Recipe Title"
+              class="w-full p-2 border border-gray-300 rounded"
+            />
+          </div>
+          <div>
+            <textarea
+              id="ingredients"
+              placeholder="Ingredients"
+              class="w-full p-2 border border-gray-300 rounded"
+            ></textarea>
+          </div>
+          <div>
+            <input
+              type="text"
+              id="author"
+              placeholder="Author Name"
+              class="w-full p-2 border border-gray-300 rounded"
+            />
+          </div>
+          <div>
+            <button type="submit" class="bg-blue-600 text-white p-2 rounded">
+              Submit
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Edit Post Form -->
+      <section id="edit-post-section" class="mb-8 hidden">
+        <h2 class="text-xl font-bold mb-4">Edit Recipe</h2>
+        <form id="edit-form" class="space-y-4">
+          <input type="hidden" id="edit-id" />
+          <div>
+            <input
+              type="text"
+              id="edit-title"
+              placeholder="Edit Recipe Title"
+              class="w-full p-2 border border-gray-300 rounded"
+            />
+          </div>
+          <div>
+            <textarea
+              id="edit-ingredients"
+              placeholder="Edit Ingredients"
+              class="w-full p-2 border border-gray-300 rounded"
+            ></textarea>
+          </div>
+          <div>
+            <input
+              type="text"
+              id="edit-author"
+              placeholder="Edit Author Name"
+              class="w-full p-2 border border-gray-300 rounded"
+            />
+          </div>
+          <div>
+            <button type="submit" class="bg-green-600 text-white p-2 rounded">
+              Update Recipe
+            </button>
+            <button id="cancel-edit" class="bg-gray-600 text-white p-2 rounded">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Recipe List -->
+      <section id="posts-section">
+        <h2 class="text-xl font-bold mb-4">All Recipes</h2>
+        <div id="posts-container"></div>
+      </section>
+    </main>
+
+    <script>
+      // API URL (replace with your backend API URL)
+      const API_URL = "http://localhost:8080/recipe/get";
+
+      // Get the form and post container elements from the DOM
+      const postForm = document.getElementById("post-form");
+      const editForm = document.getElementById("edit-form");
+      const postsContainer = document.getElementById("posts-container");
+      const createPostSection = document.getElementById("create-post-section");
+      const editPostSection = document.getElementById("edit-post-section");
+
+      // Function to fetch recipes from the API
+      async function fetchPosts() {
+        const token = localStorage.getItem("token"); // Get the token from localStorage
+        try {
+          const response = await fetch(API_URL, {
+            headers: { Authorization: `Bearer ${token}` }, // Include the token in the header
+          });
+
+          const responseData = await response.json();
+          console.log(responseData); // Check if response is correct
+
+          // Access the recipes array from the response
+          const posts = responseData.recipes;
+
+          renderPosts(posts);
+        } catch (error) {
+          console.error("Error fetching recipes:", error);
+          postsContainer.innerHTML =
+            "<p>Failed to load recipes. Try again later.</p>";
+        }
+      }
+
+      // Function to render recipes on the page
+      function renderPosts(posts) {
+        postsContainer.innerHTML = ""; // Clear the current posts
+
+        // Check if there are any posts
+        if (!Array.isArray(posts) || posts.length === 0) {
+          postsContainer.innerHTML = "<p>No recipes yet. Create one!</p>";
+          return;
+        }
+
+        // Loop through each post and create HTML to display it
+        posts.forEach((post) => {
+          const postElement = document.createElement("div");
+          postElement.classList.add(
+            "bg-white",
+            "p-4",
+            "mb-4",
+            "border",
+            "border-gray-300",
+            "rounded"
+          );
+
+          postElement.innerHTML = `
+                <h3 class="text-lg font-bold mb-2">${post.title}</h3>
+                <p class="text-gray-600 mb-2">Ingredients: ${post.ingredients}</p>
+                <p class="text-gray-700 mb-2">Author: ${post.author}</p>
+                <div class="flex space-x-2">
+                    <button onclick="editPost('${post._id}')" class="bg-yellow-500 text-white p-1 rounded">Edit</button>
+                    <button onclick="deletePost('${post._id}')" class="bg-red-500 text-white p-1 rounded">Delete</button>
+                </div>
+            `;
+
+          // Append the post element to the posts container
+          postsContainer.appendChild(postElement);
+        });
+      }
+
+      // Handle form submit to create a new recipe
+      postForm.addEventListener("submit", async (e) => {
+        e.preventDefault(); // Prevent form from submitting to a server
+
+        // Get the values from the form
+        const title = document.getElementById("title").value;
+        const ingredients = document.getElementById("ingredients").value;
+        const author = document.getElementById("author").value;
+
+        if (!title || !ingredients || !author) {
+          alert("Title, ingredients, and author are required!");
+          return;
+        }
+
+        // Create the new recipe object
+        const newRecipe = { title, ingredients, author };
+        const token = localStorage.getItem("token"); // Get the token from localStorage
+
+        // Send POST request to create the new recipe
+        try {
+          const response = await fetch("http://localhost:8080/recipe/add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`, // Include the token in the header
+            },
+            body: JSON.stringify(newRecipe),
+          });
+
+          if (response.ok) {
+            fetchPosts(); // Re-fetch and render the posts after the new one is created
+            postForm.reset(); // Clear the form
+          } else {
+            console.error("Failed to create recipe");
+          }
+        } catch (error) {
+          console.error("Error creating recipe:", error);
+        }
+      });
+
+      // Function to delete a recipe
+      async function deletePost(id) {
+        const token = localStorage.getItem("token"); // Get the token from localStorage
+        try {
+          const response = await fetch(
+            `http://localhost:8080/recipe/delete/${id}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${token}`, // Include the token in the header
+              },
+            }
+          );
+
+          if (response.ok) {
+            fetchPosts(); // Re-fetch and render the posts after deletion
+          } else {
+            console.error("Failed to delete recipe");
+          }
+        } catch (error) {
+          console.error("Error deleting recipe:", error);
+        }
+      }
+
+      // Function to edit a recipe (populate the form with existing data)
+      function editPost(id) {
+        const token = localStorage.getItem("token"); // Get the token
+
+        // Fetch the specific post to be edited
+        fetch(`http://localhost:8080/recipe/get/${id}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`, // Include the token in the header
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Unauthorized");
+            }
+            return response.json();
+          })
+          .then((post) => {
+            // Populate the edit form with the data
+            document.getElementById("edit-id").value = post._id;
+            document.getElementById("edit-title").value = post.title;
+            document.getElementById("edit-ingredients").value =
+              post.ingredients;
+            document.getElementById("edit-author").value = post.author;
+
+            // Switch visibility of the forms
+            createPostSection.classList.add("hidden");
+            editPostSection.classList.remove("hidden");
+          })
+          .catch((error) => console.error("Error fetching recipe:", error));
+      }
+
+      // Handle form submit to update an existing recipe
+      editForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById("edit-id").value;
+        const title = document.getElementById("edit-title").value;
+        const ingredients = document.getElementById("edit-ingredients").value;
+        const author = document.getElementById("edit-author").value;
+
+        const updatedRecipe = { title, ingredients, author };
+        const token = localStorage.getItem("token");
+
+        try {
+          const response = await fetch(
+            `http://localhost:8080/recipe/update/${id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(updatedRecipe),
+            }
+          );
+
+          if (response.ok) {
+            fetchPosts(); // Re-fetch and render the posts after updating
+            editForm.reset(); // Clear the form
+            createPostSection.classList.remove("hidden");
+            editPostSection.classList.add("hidden");
+          } else {
+            console.error("Failed to update recipe");
+          }
+        } catch (error) {
+          console.error("Error updating recipe:", error);
+        }
+      });
+
+      // Cancel edit and return to create form
+      document
+        .getElementById("cancel-edit")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          editForm.reset();
+          createPostSection.classList.remove("hidden");
+          editPostSection.classList.add("hidden");
+        });
+
+      // Function to handle logout
+      function logout() {
+        localStorage.removeItem("token"); // Remove token from localStorage
+        window.location.reload(); // Reload the page to reset the state
+      }
+
+      // Event listener for logout button
+      document
+        .getElementById("logout-button")
+        .addEventListener("click", logout);
+
+      // Check if the user is logged in by looking for the token
+      function checkAuthentication() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "login.html"; // Redirect to login if not authenticated
+        }
+      }
+
+      // Call the authentication check on page load
+      checkAuthentication();
+
+      // Fetch posts when the page loads
+      fetchPosts();
+    </script>
+  </body>
+</html>
