@@ -21,6 +21,13 @@ This is the backend for the Recipe Management App. It provides CRUD (Create, Rea
 
 ## API Endpoints:
 
+### User Routes:
+
+| Method | Endpoint                         | Description                        |
+|--------|----------------------------------|------------------------------------|
+| **POST**    | `/user/login`                    | Login User                      |
+| **POST**     | `/user/signup`                    | Register User                  |
+
 ### Recipe Routes:
 
 | Method | Endpoint                         | Description                        |
